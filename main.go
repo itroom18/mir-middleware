@@ -2,6 +2,7 @@ package mirmiddleware
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 
@@ -74,8 +75,13 @@ func MiddlewareUser(c *fiber.Ctx) error {
 	return c.Next()
 }
 
-func MiddlewareRole(roles []int, strict bool, c *fiber.Ctx) error {
+func MiddlewareRole(roles []int, strict bool) fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		return middlewareRoleWrapper(roles, strict, c)
+	}
+}
 
+func middlewareRoleWrapper(roles []int, strict bool, c *fiber.Ctx) error {
 	req, err := http.NewRequest("POST", URL, nil)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -112,7 +118,11 @@ func MiddlewareRole(roles []int, strict bool, c *fiber.Ctx) error {
 	var middlewareStruct middleware
 
 	if err := json.Unmarshal([]byte(body), &middlewareStruct); err != nil {
-		return err
+		fmt.Printf("Failed to unmarshal: %v\nBody: %s\n", err, string(body))
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"message": "invalid server response",
+			"error":   err.Error(),
+		})
 	}
 
 	// Создаем типа объекта для хранения id ролей пользователя
